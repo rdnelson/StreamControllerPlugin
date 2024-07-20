@@ -13,6 +13,7 @@ import threading
 import subprocess
 from PIL import Image
 from ...color import color_shift
+from ...ui import create_bool_row, create_text_row
 
 # Import gtk modules - used for the config rows
 import gi
@@ -24,35 +25,42 @@ class StatusAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._status_timer: Optional[threading.Timer] = None
-        self._base_image: Image.Image = None
+        self._base_image = Image.open(os.path.join(self.plugin_base.PATH, "assets", "info.png"))
         
     def on_ready(self) -> None:
-        self._base_image = Image.open(os.path.join(self.plugin_base.PATH, "assets", "info.png"))
         self.set_media(self._base_image, size=0.75)
         self.start_timer()
+
+    def get_config_rows(self) -> list:
+        return [
+            *super().get_config_rows(),
+            create_text_row(self, "Status Command", "status_command"),
+            create_text_row(self, "Button Command", "button_command"),
+            create_bool_row(
+                self,
+                "Background status display",
+                "background_colour",
+                subtitle="When enabled, the status colours will be used as the key background",
+            )
+        ]
         
     def on_key_down(self) -> None:
         command = self.get_settings().get("button_command", None)
         if command is None:
             return None
 
-        p = multiprocessing.Process(target=subprocess.Popen, args=[command], kwargs={"shell": True, "start_new_session": True, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "cwd": os.path.expanduser("~")})
-        p.start()
+        subprocess.Popen(command, start_new_session=True, cwd=os.path.expanduser("~"))
 
     def start_timer(self):
         self.stop_timer()
         settings = self.get_settings()
         interval = settings.get("status_interval", 1)
-        self._status_timer = threading.Timer(interval, self.execute, args=(True,))
+        self._status_timer = threading.Timer(interval, self.status_timer_tick, args=(True,))
         self._status_timer.setDaemon(True)
         self._status_timer.setName("StatusTimer")
         self._status_timer.start()
 
-    def stop_timer(self):
-        if self._status_timer is not None:
-            self._status_timer.cancel()
-
-    def execute(self, restart_timer: bool = False):
+    def status_timer_tick(self, restart_timer: bool = False):
         self.stop_timer()
         settings = self.get_settings()
 
@@ -61,6 +69,10 @@ class StatusAction(ActionBase):
             self.start_timer()
 
         self.update_status(result == 0)
+
+    def stop_timer(self):
+        if self._status_timer is not None:
+            self._status_timer.cancel()
 
     def update_status(self, healthy: bool) -> None:
         bg_colour = self.get_settings().get("background_colour", False)
@@ -77,56 +89,11 @@ class StatusAction(ActionBase):
             self.set_media(color_shift(self._base_image.copy(), colour), size=0.75)
             self.set_background_color([0, 0, 0, 0])
 
-    def get_config_rows(self) -> list:
-        rows: list = super().get_config_rows()
-        settings = self.get_settings()
-
-        status_command = Adw.EntryRow(title="Status Command")
-        button_command = Adw.EntryRow(title="Button Command")
-        background_switch = Adw.SwitchRow(
-            title="Background status display",
-            subtitle="When enabled, the status colours will be used as the key background"
-        )
-        background_switch.set_active(settings.get("background_colour", False))
-        background_switch.connect("notify::active", self.bool_change_handler("background_colour"))
-
-        status_command_value = settings.setdefault("status_command", None)
-
-        if status_command_value is None:
-            status_command_value = ""
-
-        status_command.set_text(status_command_value)
-        status_command.connect("notify::text", self.string_change_handler("status_command"))
-
-        button_command_value = settings.setdefault("button_command", None)
-        if button_command_value is None:
-            button_command_value = ""
-
-        button_command.set_text(button_command_value)
-        button_command.connect("notify::text", self.string_change_handler("button_command"))
-
-        self.set_settings(settings)
-        return [*rows, status_command, button_command, background_switch]
-
-    def string_change_handler(self, name) -> None:
-        def handler(entry, _):
-            settings = self.get_settings()
-            settings[name] = entry.get_text()
-            self.set_settings(settings)
-        return handler
-
-    def bool_change_handler(self, name):
-        def handler(switch, _) -> None:
-            settings = self.get_settings()
-            settings[name] = switch.get_active()
-            self.set_settings(settings)
-        return handler
-
     def run_status_command(self, command: Optional[str]) -> Optional[int]:
         if command is None:
             return None
 
-        result = subprocess.Popen(command, shell=True, start_new_session=True, text=True, stdout=subprocess.PIPE, cwd=os.path.expanduser("~"))
+        result = subprocess.Popen(command, shell=True, start_new_session=False, text=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=os.path.expanduser("~"))
         result.wait()
         return result.returncode
         

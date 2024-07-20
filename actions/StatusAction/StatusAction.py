@@ -1,35 +1,31 @@
 # Import StreamController modules
-import multiprocessing
-from typing import Optional
 from src.backend.PluginManager.ActionBase import ActionBase
 from src.backend.DeckManagement.DeckController import DeckController
 from src.backend.PageManagement.Page import Page
 from src.backend.PluginManager.PluginBase import PluginBase
+import globals as gl
 from loguru import logger as log
 
 # Import python modules
+from typing import Optional
 import os
 import threading
 import subprocess
 from PIL import Image
 from ...color import color_shift
-from ...ui import create_bool_row, create_text_row
-
-# Import gtk modules - used for the config rows
-import gi
-gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw
+from ...ui import create_bool_row, create_icon_row, create_text_row
 
 class StatusAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.DEFAULT_ICON = os.path.join(self.plugin_base.PATH, "assets", "info.png")
+        self._icon_path = self.DEFAULT_ICON
         self._status_timer: Optional[threading.Timer] = None
-        self._base_image = Image.open(os.path.join(self.plugin_base.PATH, "assets", "info.png"))
+        self._current_status = False
         
     def on_ready(self) -> None:
-        self.set_media(self._base_image, size=0.75)
         self.start_timer()
+        self.update_status()
 
     def get_config_rows(self) -> list:
         return [
@@ -41,8 +37,19 @@ class StatusAction(ActionBase):
                 "Background status display",
                 "background_colour",
                 subtitle="When enabled, the status colours will be used as the key background",
-            )
+            ),
+            create_icon_row(self, "Set Icon", "icon_path", self.DEFAULT_ICON),
         ]
+
+    def load_icon(self):
+        settings = self.get_settings()
+        path = settings.get("icon_path", self.DEFAULT_ICON)
+        self._base_image = Image.open(path)
+
+    def update_icon(self, path: str):
+        settings = self.get_settings()
+        settings.setdefault("icon_path", path)
+        self.set_settings(settings)
         
     def on_key_down(self) -> None:
         command = self.get_settings().get("button_command", None)
@@ -68,19 +75,22 @@ class StatusAction(ActionBase):
         if restart_timer:
             self.start_timer()
 
-        self.update_status(result == 0)
+        self._current_status = result == 0
+        self.update_status()
 
     def stop_timer(self):
         if self._status_timer is not None:
             self._status_timer.cancel()
 
-    def update_status(self, healthy: bool) -> None:
+    def update_status(self) -> None:
         bg_colour = self.get_settings().get("background_colour", False)
         healthy_colour = (0, 0, 0, 0) if bg_colour else (0, 220, 0, 255)
-        if healthy:
+        if self._current_status:
             colour = healthy_colour
         else:
             colour = (220, 0, 0, 255)
+
+        self.load_icon()
 
         if bg_colour:
             self.set_media(self._base_image, size=0.75)

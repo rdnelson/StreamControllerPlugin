@@ -1,6 +1,17 @@
 {
-    "version": "",
-    "thumbnail": "",
-    "id": "",
-    "name": ""
+    "version": "0.1",
+    "thumbnail": "assets/info.png",
+    "id": "ca_rnelson_StreamController",
+    "name": "My Actions",
+    "descriptions": {
+      "en_US": "The things that I would like it to do."
+    },
+    "short-descriptions": {
+      "en_US": "My stuff"
+    },
+    "tags": ["Utilities"],
+    "minimum-app-version": "1.0.0",
+    "app-version": "1.5.0-beta",
+    "description": "The things that I would like it to do.",
+    "short-description": "My stuff"
 }

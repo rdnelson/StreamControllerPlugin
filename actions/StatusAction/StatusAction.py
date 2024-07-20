@@ -38,9 +38,6 @@ class StatusAction(ActionBase):
 
         p = multiprocessing.Process(target=subprocess.Popen, args=[command], kwargs={"shell": True, "start_new_session": True, "stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "cwd": os.path.expanduser("~")})
         p.start()
-    
-    def on_key_up(self) -> None:
-        print("Key up")
 
     def start_timer(self):
         self.stop_timer()

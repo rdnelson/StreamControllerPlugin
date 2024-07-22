@@ -56,7 +56,7 @@ class StatusAction(ActionBase):
         if command is None:
             return None
 
-        subprocess.Popen(command, start_new_session=True, cwd=os.path.expanduser("~"))
+        subprocess.Popen(command, start_new_session=True, shell=True, cwd=os.path.expanduser("~"))
 
     def start_timer(self):
         self.stop_timer()

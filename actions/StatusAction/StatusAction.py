@@ -1,10 +1,5 @@
 # Import StreamController modules
 from src.backend.PluginManager.ActionBase import ActionBase
-from src.backend.DeckManagement.DeckController import DeckController
-from src.backend.PageManagement.Page import Page
-from src.backend.PluginManager.PluginBase import PluginBase
-import globals as gl
-from loguru import logger as log
 
 # Import python modules
 from typing import Optional
@@ -18,6 +13,7 @@ from ...ui import create_bool_row, create_icon_row, create_text_row
 class StatusAction(ActionBase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.has_configuration = True
         self.DEFAULT_ICON = os.path.join(self.plugin_base.PATH, "assets", "info.png")
         self._icon_path = self.DEFAULT_ICON
         self._status_timer: Optional[threading.Timer] = None
